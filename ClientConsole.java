@@ -3,6 +3,8 @@
 // license found at www.lloseng.com 
 
 import java.io.*;
+import java.util.Scanner;
+
 import client.*;
 import common.*;
 
@@ -14,7 +16,7 @@ import common.*;
  * @author Fran&ccedil;ois B&eacute;langer
  * @author Dr Timothy C. Lethbridge  
  * @author Dr Robert Lagani&egrave;re
- * @version July 2000
+ * @version September 2020
  */
 public class ClientConsole implements ChatIF 
 {
@@ -31,6 +33,13 @@ public class ClientConsole implements ChatIF
    * The instance of the client that created this ConsoleChat.
    */
   ChatClient client;
+  
+  
+  
+  /**
+   * Scanner to read from the console
+   */
+  Scanner fromConsole; 
 
   
   //Constructors ****************************************************
@@ -46,6 +55,8 @@ public class ClientConsole implements ChatIF
     try 
     {
       client= new ChatClient(host, port, this);
+      
+      
     } 
     catch(IOException exception) 
     {
@@ -53,6 +64,9 @@ public class ClientConsole implements ChatIF
                 + " Terminating client.");
       System.exit(1);
     }
+    
+    // Create scanner object to read from console
+    fromConsole = new Scanner(System.in); 
   }
 
   
@@ -66,13 +80,12 @@ public class ClientConsole implements ChatIF
   {
     try
     {
-      BufferedReader fromConsole = 
-        new BufferedReader(new InputStreamReader(System.in));
+
       String message;
 
       while (true) 
       {
-        message = fromConsole.readLine();
+        message = fromConsole.nextLine();
         client.handleMessageFromClientUI(message);
       }
     } 
@@ -105,7 +118,7 @@ public class ClientConsole implements ChatIF
   public static void main(String[] args) 
   {
     String host = "";
-    int port = 0;  //The port number
+
 
     try
     {
