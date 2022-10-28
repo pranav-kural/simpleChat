@@ -71,6 +71,24 @@ public class EchoServer extends AbstractServer
     System.out.println
       ("Server has stopped listening for connections.");
   }
+
+  /**
+   * Hook method called each time a new client connection is accepted
+   * @param client the connection connected to the client
+   */
+  @Override
+  protected void clientConnected(ConnectionToClient client) {
+    System.out.println("Connection established with a new client. Number of connected clients: " + getNumberOfClients());
+  }
+
+  /**
+   * Hook method called each time a client disconnects.
+   * @param client the connection with the client.
+   */
+  @Override
+  synchronized protected void clientDisconnected(ConnectionToClient client) {
+    System.out.println("Connection disconnected with a client. Number of connected clients: " + getNumberOfClients());
+  }
   
   //Class methods ***************************************************
   
@@ -78,7 +96,7 @@ public class EchoServer extends AbstractServer
    * This method is responsible for the creation of 
    * the server instance (there is no UI in this phase).
    *
-   * @param args[0] The port number to listen on.  Defaults to 5555 
+   * @param args The port number to listen on.  Defaults to 5555
    *          if no argument is entered.
    */
   public static void main(String[] args) 
