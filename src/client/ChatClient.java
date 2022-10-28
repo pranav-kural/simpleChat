@@ -98,92 +98,14 @@ public class ChatClient extends AbstractClient
 
     try
     {
-      // if message is NOT a command
-      if (message.charAt(0) != '#') {
+      // if message is a command
+      if (message.startsWith("#")) {
+        handleCommandFromClientUI(message);
+      } else {
         if (isConnected()) {
           sendToServer(message);
         } else {
           this.clientUI.display("Client is not connected to server. Please open connection and try again!");
-        }
-      } else {
-        // if user entered a command (with or without arguments)
-        // process user input, split on space
-        String[] userInput = message.split(" ");
-        // extract the command (without '#')
-        String command = userInput[0].substring(1);
-        String commandArgs = null;
-        // if we have received command with arguments
-        if (userInput.length > 1) {
-          // extract arguments
-          commandArgs= userInput[1];
-        }
-
-        // check if the command is valid (not empty, or unhandled)
-        if (!isValidCommand(command)) {
-          this.clientUI.display("not a valid command: #" + command);
-        }
-
-        if (command.equals(COMMANDS.quit.name())) {
-          // close connection to server and quit
-          quit();
-        }
-
-        else if (command.equals(COMMANDS.logoff.name())) {
-          // close connection (but not quit)
-          closeConnection();
-        }
-
-        else if (command.equals(COMMANDS.sethost.name())) {
-          // setting a new hostname
-          // validate command arguments
-          if (!isValidCommandArgs(commandArgs)) {
-            this.clientUI.display("Invalid command argument, no host provided.");
-          } else {
-            setHost(commandArgs);
-          }
-        }
-
-        else if (command.equals(COMMANDS.setport.name())) {
-          // setting a new port
-          // validate command arguments
-          if (!isValidCommandArgs(commandArgs)) {
-            this.clientUI.display("Invalid command argument, no port number provided.");
-          } else {
-            int port;
-            // validate input
-            try {
-              port = Integer.parseInt(commandArgs);
-              // set the new port if parsing was successful
-              setPort(port);
-            } catch (NumberFormatException e) {
-              this.clientUI.display("Invalid value provided for port number: " + commandArgs);
-            }
-          }
-        }
-
-        else if (command.equals(COMMANDS.login.name())) {
-          // established a connection to the server; displays error is already connected
-          if (isConnected()) {
-            this.clientUI.display("Invalid command! Client is already connected to host " + getHost() + " on port " + getPort());
-          } else {
-            // open connection
-            openConnection();
-          }
-        }
-
-        else if (command.equals(COMMANDS.gethost.name())) {
-          // display current host name
-          this.clientUI.display("Connected to host: " + getHost());
-        }
-
-        else if (command.equals(COMMANDS.getport.name())) {
-          // display current host name
-          this.clientUI.display("Connected on port: " + getPort());
-        }
-
-        // not one of the yet implemented accepted commands
-        else {
-          this.clientUI.display("Command not available yet");
         }
       }
     }
@@ -195,6 +117,101 @@ public class ChatClient extends AbstractClient
         msg += "Terminating client";
       }
       clientUI.display(msg);
+    }
+  }
+
+  private void handleCommandFromClientUI(String clientCommand) throws IOException {
+    // if user entered a command (with or without arguments)
+    // process user input, split on space
+    String[] userInput = clientCommand.split(" ");
+    // extract the command (without '#')
+    String command = userInput[0].substring(1);
+    String commandArgs = null;
+    // if we have received command with arguments
+    if (userInput.length > 1) {
+      // extract arguments
+      commandArgs= userInput[1];
+    }
+
+    // check if the command is valid (not empty, or unhandled)
+    if (!isValidCommand(command)) {
+      this.clientUI.display("not a valid command: #" + command);
+    }
+
+    if (command.equals(COMMANDS.quit.name())) {
+      // close connection to server and quit
+      quit();
+    }
+
+    else if (command.equals(COMMANDS.logoff.name())) {
+      // close connection (but not quit)
+      if (!isConnected()) {
+        closeConnection();
+      } else {
+        this.clientUI.display("Invalid command! No active connection.");
+      }
+
+    }
+
+    else if (command.equals(COMMANDS.sethost.name())) {
+      // setting a new hostname
+      // make sure client is not already connected
+      if (isConnected()) {
+        this.clientUI.display("Can not change hostname while connection is active. Please disconnect first (#logoff), then try again.");
+      }
+      // validate command arguments
+      if (!isValidCommandArgs(commandArgs)) {
+        this.clientUI.display("Invalid command argument, no host provided.");
+      } else {
+        setHost(commandArgs);
+      }
+    }
+
+    else if (command.equals(COMMANDS.setport.name())) {
+      // setting a new port
+      // make sure client is not already connected
+      if (isConnected()) {
+        this.clientUI.display("Can not change port while connection is active. Please disconnect first (#logoff), then try again.");
+      }
+      // validate command arguments
+      if (!isValidCommandArgs(commandArgs)) {
+        this.clientUI.display("Invalid command argument, no port number provided.");
+      } else {
+        int port;
+        // validate input
+        try {
+          port = Integer.parseInt(commandArgs);
+          // set the new port if parsing was successful
+          setPort(port);
+        } catch (NumberFormatException e) {
+          this.clientUI.display("Invalid value provided for port number: " + commandArgs);
+        }
+      }
+    }
+
+    else if (command.equals(COMMANDS.login.name())) {
+      // established a connection to the server; displays error is already connected
+      if (isConnected()) {
+        this.clientUI.display("Invalid command! Client is already connected to host " + getHost() + " on port " + getPort());
+      } else {
+        // open connection
+        openConnection();
+      }
+    }
+
+    else if (command.equals(COMMANDS.gethost.name())) {
+      // display current host name
+      this.clientUI.display("Connected to host: " + getHost());
+    }
+
+    else if (command.equals(COMMANDS.getport.name())) {
+      // display current host name
+      this.clientUI.display("Connected on port: " + getPort());
+    }
+
+    // not one of the yet implemented accepted commands
+    else {
+      this.clientUI.display("Command not available yet");
     }
   }
   
