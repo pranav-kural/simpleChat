@@ -7,6 +7,7 @@ package client;
 import ocsf.client.*;
 import common.*;
 import java.io.*;
+import java.util.HashMap;
 
 /**
  * This class overrides some of the methods defined in the abstract
@@ -25,8 +26,31 @@ public class ChatClient extends AbstractClient
    * The interface type variable.  It allows the implementation of 
    * the display method in the client.
    */
-  ChatIF clientUI; 
+  ChatIF clientUI;
 
+  // define a structure for all commands
+  // to avoid using hard-coded strings in multiple places
+  private enum COMMANDS {
+    quit,
+    logoff,
+    sethost,
+    setport,
+    login,
+    gethost,
+    getport
+  }
+
+  // list of accepted commands (common to all clients)
+  // storing in a HashMap for quickly checking if a given string value if a valid command (in O(1))
+  private final static HashMap<String, Boolean> ACCEPTED_COMMANDS = new HashMap<>() {{
+            put(COMMANDS.quit.name(), true);
+            put(COMMANDS.logoff.name(), true);
+            put(COMMANDS.sethost.name(), true);
+            put(COMMANDS.setport.name(), true);
+            put(COMMANDS.login.name(), true);
+            put(COMMANDS.gethost.name(), true);
+            put(COMMANDS.getport.name(), true);
+  }};
   
   //Constructors ****************************************************
   
@@ -66,15 +90,111 @@ public class ChatClient extends AbstractClient
    */
   public void handleMessageFromClientUI(String message)
   {
+    // guard-clause
+    if (message == null) {
+      this.clientUI.display("Invalid message received from Client UI");
+      return;
+    }
+
     try
     {
-      sendToServer(message);
+      // if message is NOT a command
+      if (message.charAt(0) != '#') {
+        if (isConnected()) {
+          sendToServer(message);
+        } else {
+          this.clientUI.display("Client is not connected to server. Please open connection and try again!");
+        }
+      } else {
+        // if user entered a command (with or without arguments)
+        // process user input, split on space
+        String[] userInput = message.split(" ");
+        // extract the command (without '#')
+        String command = userInput[0].substring(1);
+        String commandArgs = null;
+        // if we have received command with arguments
+        if (userInput.length > 1) {
+          // extract arguments
+          commandArgs= userInput[1];
+        }
+
+        // check if the command is valid (not empty, or unhandled)
+        if (!isValidCommand(command)) {
+          this.clientUI.display("not a valid command: #" + command);
+        }
+
+        if (command.equals(COMMANDS.quit.name())) {
+          // close connection to server and quit
+          quit();
+        }
+
+        else if (command.equals(COMMANDS.logoff.name())) {
+          // close connection (but not quit)
+          closeConnection();
+        }
+
+        else if (command.equals(COMMANDS.sethost.name())) {
+          // setting a new hostname
+          // validate command arguments
+          if (!isValidCommandArgs(commandArgs)) {
+            this.clientUI.display("Invalid command argument, no host provided.");
+          } else {
+            setHost(commandArgs);
+          }
+        }
+
+        else if (command.equals(COMMANDS.setport.name())) {
+          // setting a new port
+          // validate command arguments
+          if (!isValidCommandArgs(commandArgs)) {
+            this.clientUI.display("Invalid command argument, no port number provided.");
+          } else {
+            int port;
+            // validate input
+            try {
+              port = Integer.parseInt(commandArgs);
+              // set the new port if parsing was successful
+              setPort(port);
+            } catch (NumberFormatException e) {
+              this.clientUI.display("Invalid value provided for port number: " + commandArgs);
+            }
+          }
+        }
+
+        else if (command.equals(COMMANDS.login.name())) {
+          // established a connection to the server; displays error is already connected
+          if (isConnected()) {
+            this.clientUI.display("Invalid command! Client is already connected to host " + getHost() + " on port " + getPort());
+          } else {
+            // open connection
+            openConnection();
+          }
+        }
+
+        else if (command.equals(COMMANDS.gethost.name())) {
+          // display current host name
+          this.clientUI.display("Connected to host: " + getHost());
+        }
+
+        else if (command.equals(COMMANDS.getport.name())) {
+          // display current host name
+          this.clientUI.display("Connected on port: " + getPort());
+        }
+
+        // not one of the yet implemented accepted commands
+        else {
+          this.clientUI.display("Command not available yet");
+        }
+      }
     }
     catch(IOException e)
     {
-      clientUI.display
-        ("Could not send message to server.  Terminating client.");
-      quit();
+      String msg = "Could not send message to server. " + e.getMessage();
+      if (isConnected()) {
+        quit();
+        msg += "Terminating client";
+      }
+      clientUI.display(msg);
     }
   }
   
@@ -83,11 +203,16 @@ public class ChatClient extends AbstractClient
    */
   public void quit()
   {
-    try
-    {
-      closeConnection();
+    // try to disconnect is currently connected
+    if (isConnected()) {
+      try
+      {
+        closeConnection();
+      }
+      catch(IOException e) {
+        this.clientUI.display("Unable to close connection");
+      }
     }
-    catch(IOException e) {}
     System.exit(0);
   }
 
@@ -108,6 +233,19 @@ public class ChatClient extends AbstractClient
   protected void connectionException(Exception exception) {
     this.clientUI.display("The server has shut down");
     quit();
+  }
+
+  /**
+   * Checks is a provided command value is one of the accepted commands
+   * @param command string value of the command to be validated
+   * @return true if valid command, else false
+   */
+  private static boolean isValidCommand(String command) {
+    return !command.isEmpty() && ACCEPTED_COMMANDS.get(command);
+  }
+
+  private static boolean isValidCommandArgs(String commandArgs) {
+    return commandArgs != null && !commandArgs.isEmpty();
   }
 }
 //End of ChatClient class
