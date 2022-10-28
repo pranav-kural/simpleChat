@@ -3,7 +3,7 @@
 // license found at www.lloseng.com 
 
 
-import ocsf.server.*;
+import  ocsf.server.*;
 
 /**
  * This class overrides some of the methods in the abstract 
@@ -15,7 +15,7 @@ import ocsf.server.*;
  * @author Paul Holden
  * @version July 2000
  */
-public class EchoServer extends AbstractServer 
+public class EchoServer extends AbstractServer
 {
   //Class variables *************************************************
   
