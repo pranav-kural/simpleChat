@@ -33,6 +33,11 @@ public class ChatClient extends AbstractClient
    */
   String loginId;
 
+  /**
+   * Specify signature of the command sent by client to set login id
+   */
+  public static final String CLIENT_SET_LOGIN_ID_COMMAND = "#login";
+
   // define a structure for all commands
   // to avoid using hard-coded strings in multiple places
   private enum COMMANDS {
@@ -74,8 +79,6 @@ public class ChatClient extends AbstractClient
     this.clientUI = clientUI;
     this.loginId = loginId;
     openConnection();
-    // send login id to the server
-    sendToServer("#login " + loginId);
   }
 
   
@@ -263,6 +266,20 @@ public class ChatClient extends AbstractClient
   protected void connectionException(Exception exception) {
     this.clientUI.display("The server has shut down");
     quit();
+  }
+
+  /**
+   * Hook method called after a connection has been established.
+   */
+  @Override
+  protected void connectionEstablished() {
+    // send server command to set loginId
+    try {
+      sendToServer(CLIENT_SET_LOGIN_ID_COMMAND + " " + loginId);
+    } catch (IOException e) {
+      System.out.println("Unable to send login command to server");
+      System.exit(1);
+    }
   }
 
   /**

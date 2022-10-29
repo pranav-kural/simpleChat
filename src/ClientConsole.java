@@ -34,9 +34,7 @@ public class ClientConsole implements ChatIF
    * The instance of the client that created this ConsoleChat.
    */
   ChatClient client;
-  
-  
-  
+
   /**
    * Scanner to read from the console
    */
@@ -61,8 +59,6 @@ public class ClientConsole implements ChatIF
     try 
     {
       client= new ChatClient(loginId, host, port, this);
-      
-      
     } 
     catch(IOException exception) 
     {

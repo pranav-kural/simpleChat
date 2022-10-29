@@ -1,7 +1,6 @@
-import client.ChatClient;
 import common.ChatIF;
+import server.EchoServer;
 
-import java.io.IOException;
 import java.util.Scanner;
 
 public class ServerConsole implements ChatIF {

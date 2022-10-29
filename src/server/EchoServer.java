@@ -1,13 +1,14 @@
+package server;
 // This file contains material supporting section 3.7 of the textbook:
 // "Object Oriented Software Engineering" and is issued under the open-source
 // license found at www.lloseng.com 
 
 
-import client.ChatClient;
 import common.ChatIF;
 import  ocsf.server.*;
 
 import java.io.IOException;
+import java.sql.SQLOutput;
 import java.util.HashMap;
 
 /**
@@ -30,6 +31,32 @@ public class EchoServer extends AbstractServer
    */
   ChatIF serverUI;
 
+  /**
+   * Specify the prefix character used to identify commands
+   */
+  private static final String COMMAND_PREFIX = "#";
+
+  /**
+   * Specify signature of the key value used for storing client's login id
+   */
+  private static final String CLIENT_LOGIN_ID_KEY = "loginID";
+
+  /**
+   * Specify signature of the command sent by client to set login id
+   */
+  public static final String CLIENT_SET_LOGIN_ID_COMMAND = "#login";
+
+  /**
+   * Specify signature of the command used to logoff (disconnect) a client
+   */
+  private static final String CLIENT_LOGOFF_COMMAND = "#logoff";
+
+  /**
+   * Specify delimiter used to separate command from arguments provided with it
+   */
+  private static final String COMMAND_ARGUMENT_SEPARATOR = "\\s+";
+
+
   // define a structure for all commands
   // to avoid using hard-coded strings in multiple places
   private enum COMMANDS {
@@ -38,7 +65,7 @@ public class EchoServer extends AbstractServer
     close, // stop listening and disconnect all clients
     setport, // set new port (only when not listening)
     start, // start listening
-    getport // get the port server is listening on
+    getport, // get the port server is listening on
   }
 
   // list of accepted commands (common to all clients)
@@ -69,7 +96,7 @@ public class EchoServer extends AbstractServer
    *
    * @param port The port number to connect on.
    */
-  public EchoServer(int port, ServerConsole serverUI)
+  public EchoServer(int port, ChatIF serverUI)
   {
     super(port);
     this.serverUI = serverUI;
@@ -83,11 +110,45 @@ public class EchoServer extends AbstractServer
    * @param msg The message received from the client.
    * @param client The connection from which the message originated.
    */
-  public void handleMessageFromClient
-    (Object msg, ConnectionToClient client)
+  public void handleMessageFromClient(Object msg, ConnectionToClient client)
   {
-    System.out.println("Message received: " + msg + " from " + client);
-    this.sendToAllClients(msg);
+    // guard-clause
+    if (client == null) {
+      System.out.println("Invalid call to handle message from client without providing a client instance");
+      return;
+    } else if (msg == null || msg.toString().isEmpty()) {
+      System.out.println("Invalid message received from client: " + client);
+      return;
+    }
+
+    String msgStr = (String) msg;
+    // if msg received from client is "#login" command
+    if (msgStr.startsWith(CLIENT_SET_LOGIN_ID_COMMAND)) {
+      try {
+        // set client's loginId
+        setClientLoginId(msgStr, client);
+        sendMessageToClient("Client's login id successfully updated", client);
+      } catch (Exception e) {
+        sendMessageToClient("Failed to set login id. Error: " + e.getMessage(), client);
+      }
+    } else {
+      // make sure client has set the login id before sending any messages
+      // this also ensures, client sent login command as first thing after establishing connection
+      if (client.getInfo(CLIENT_LOGIN_ID_KEY) != null) {
+        // send message to the server
+        System.out.println("Message received: " + msg + " from " + client);
+        this.sendToAllClients(String.valueOf(client.getInfo(CLIENT_LOGIN_ID_KEY)) + ": " + msg);
+      } else {
+        sendMessageToClient("Invalid request received. " + CLIENT_LOGIN_ID_KEY + " must be the first command after connection has established. Terminating connection.", client);
+        try {
+          // close client connection
+          client.close();
+        } catch (IOException e) {
+          System.out.println("Unable to close client connection");
+        }
+      }
+
+    }
   }
     
   /**
@@ -96,8 +157,7 @@ public class EchoServer extends AbstractServer
    */
   protected void serverStarted()
   {
-    System.out.println
-      ("Server listening for connections on port " + getPort());
+    System.out.println("Server listening for connections on port " + getPort());
   }
   
   /**
@@ -106,8 +166,7 @@ public class EchoServer extends AbstractServer
    */
   protected void serverStopped()
   {
-    System.out.println
-      ("Server has stopped listening for connections.");
+    System.out.println("Server has stopped listening for connections.");
   }
 
   /**
@@ -138,7 +197,7 @@ public class EchoServer extends AbstractServer
     try
     {
       // if message is a command
-      if (message.startsWith("#")) {
+      if (message.startsWith(COMMAND_PREFIX)) {
         handleCommandFromServerUI(message);
       } else {
         if (getNumberOfClients() == 0) {
@@ -160,14 +219,19 @@ public class EchoServer extends AbstractServer
 
   private void handleCommandFromServerUI(String serverCommand) throws IOException {
 
+    // guard-clause
+    if (serverCommand == null || serverCommand.isEmpty()) {
+      throw new IOException("No command provided!");
+    }
+
     // get command and command args separately
     String[] commandAndArgs = extractCommandAndArgs(serverCommand);
-    String command = commandAndArgs[0];
+    String command = commandAndArgs[0].substring(1); // get command name without the COMMAND_PREFIX
     String commandArgs = commandAndArgs[1]; // will be null if no args supplied
 
     // check if the command is valid (not empty, or unhandled)
     if (!isValidCommand(command)) {
-      this.serverUI.display("not a valid command: #" + command);
+      this.serverUI.display("not a valid command: " + COMMAND_PREFIX + command);
       return;
     }
 
@@ -208,7 +272,7 @@ public class EchoServer extends AbstractServer
     else if (command.equals(COMMANDS.setport.name())) {
       // make sure client is not already connected
       if (isListening()) {
-        this.serverUI.display("Can not change port while server is listening for connections. Please close the server first (#close), then try again.");
+        this.serverUI.display("Can not change port while server is listening for connections. Please close the server first (" + COMMAND_PREFIX + "close), then try again.");
       }
       // validate command arguments
       if (!isValidCommandArgs(commandArgs)) {
@@ -254,8 +318,28 @@ public class EchoServer extends AbstractServer
     ConnectionToClient client;
     for (Thread clientThread : clientThreads) {
       client = (ConnectionToClient) clientThread;
-      client.sendToClient("#logoff");
+      client.sendToClient(CLIENT_LOGOFF_COMMAND);
     }
+  }
+
+  private void setClientLoginId(String msgStr, ConnectionToClient client) {
+    // guard-clause
+    if (msgStr == null || msgStr.isEmpty() || client == null) {
+      throw new NullPointerException("Method setClientLoginId called with invalid arguments");
+    }
+    // process input to get command and args separately
+    String[] loginInput = extractCommandAndArgs(msgStr);
+    // validate command
+    if (!loginInput[0].equals(CLIENT_SET_LOGIN_ID_COMMAND)) {
+      throw new IllegalArgumentException("Method setClientLoginId called with invalid command value: " + loginInput[0]);
+    }
+    // validate existence of argument (loginId value)
+    else if (loginInput.length < 2 || loginInput[1] == null) {
+      throw new IllegalArgumentException("No value provided for login id");
+    }
+
+    // set client's login id
+    client.setInfo(CLIENT_LOGIN_ID_KEY, loginInput[1]);
   }
 
   //Class methods ***************************************************
@@ -266,21 +350,33 @@ public class EchoServer extends AbstractServer
    * @return true if valid command, else false
    */
   private static boolean isValidCommand(String command) {
-    return !command.isEmpty() && ACCEPTED_COMMANDS.containsKey(command);
+    return command != null && !command.isEmpty() && ACCEPTED_COMMANDS.containsKey(command);
   }
 
   private static boolean isValidCommandArgs(String commandArgs) {
     return commandArgs != null && !commandArgs.isEmpty();
   }
 
-  private String[] extractCommandAndArgs(String userInput) throws ArrayIndexOutOfBoundsException {
+  private String[] extractCommandAndArgs(String userInput) {
+    // guard-clause
+    if (userInput == null || userInput.isEmpty()) {
+      return null;
+    }
     // process user input, split on space
-    String[] result = userInput.split(" ");
-    // extract the command (without '#')
-    String command = result[0].substring(1);
-    String commandArgs = (result.length > 2) ? result[1] : null;
+    String[] result = userInput.split(COMMAND_ARGUMENT_SEPARATOR);
+    // extract the command (without COMMAND_PREFIX)
+    String command = result[0];
+    String commandArgs = (result.length >= 2) ? result[1] : null;
     return new String[]{ command, commandArgs };
   }
 
+  private void sendMessageToClient(String message, ConnectionToClient client) {
+    try {
+      client.sendToClient(message);
+    } catch (IOException e) {
+      System.out.println("Failed to send message to the client. Error: " + e.getMessage());
+    }
+  }
+
 }
-//End of EchoServer class
+//End of server.EchoServer class
