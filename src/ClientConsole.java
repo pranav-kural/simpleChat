@@ -26,6 +26,7 @@ public class ClientConsole implements ChatIF
    * The default port to connect on.
    */
   final public static int DEFAULT_PORT = 5555;
+  final private static String DEFAULT_HOST = "localhost";
   
   //Instance variables **********************************************
   
@@ -104,7 +105,8 @@ public class ClientConsole implements ChatIF
    */
   public void display(String message) 
   {
-    System.out.println("> " + message);
+    // if it's a server message, no need for ">" prefix
+    System.out.println((message.startsWith("SERVER MSG>") ? message : "> " + message));
   }
 
   
@@ -117,22 +119,20 @@ public class ClientConsole implements ChatIF
    */
   public static void main(String[] args) 
   {
-    String host = "";
-    int port;
+    // initialize using default values
+    String host = DEFAULT_HOST;
+    int port = DEFAULT_PORT;
 
-    try
-    {
+    // over-write host and/or port if we have valid arguments
+    try {
       host = args[0];
       port = Integer.parseInt(args[1]);
       System.out.println("Connecting on host: " + host + ", port: " + port);
     }
-    catch(ArrayIndexOutOfBoundsException e)
-    {
-      host = "localhost";
-      port = DEFAULT_PORT;
+    catch(ArrayIndexOutOfBoundsException e) {
       System.out.println("No host or port provided. Connecting on host: " + host + ", port: " + port);
-    } catch (NumberFormatException e) {
-      port = DEFAULT_PORT;
+    }
+    catch (NumberFormatException e) {
       System.out.println("No port number provided, connecting on host: " + host + ", port: " + port);
     }
     ClientConsole chat= new ClientConsole(host, port);

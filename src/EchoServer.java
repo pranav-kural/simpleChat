@@ -3,7 +3,10 @@
 // license found at www.lloseng.com 
 
 
+import common.ChatIF;
 import  ocsf.server.*;
+
+import java.io.IOException;
 
 /**
  * This class overrides some of the methods in the abstract 
@@ -18,6 +21,12 @@ import  ocsf.server.*;
 public class EchoServer extends AbstractServer
 {
   //Class variables *************************************************
+
+  /**
+   * The interface type variable.  It allows the implementation of
+   * the display method in the server.
+   */
+  ChatIF serverUI;
   
   /**
    * The default port to listen on.
@@ -36,6 +45,16 @@ public class EchoServer extends AbstractServer
     super(port);
   }
 
+  /**
+   * Constructs an instance of the echo server.
+   *
+   * @param port The port number to connect on.
+   */
+  public EchoServer(int port, ServerConsole serverUI)
+  {
+    super(port);
+    this.serverUI = serverUI;
+  }
   
   //Instance methods ************************************************
   
@@ -89,7 +108,39 @@ public class EchoServer extends AbstractServer
   synchronized protected void clientDisconnected(ConnectionToClient client) {
     System.out.println("Connection disconnected with a client. Number of connected clients: " + getNumberOfClients());
   }
-  
+
+  public void handleMessageFromServerUI(String message) {
+    // guard-clause
+    if (message == null) {
+      this.serverUI.display("Invalid message received from Server UI");
+      return;
+    }
+
+    if (!isListening()) {
+      this.serverUI.display("Server is currently not listening!");
+      return;
+    }
+
+    try
+    {
+      // if message is a command
+      if (message.startsWith("#")) {
+        handleCommandFromServerUI(message);
+      } else {
+        // print the message to all connected clients
+        this.sendToAllClients("SERVER MSG> " + message);
+        // print message on serverUI as well
+        this.serverUI.display(message);
+      }
+    }
+    catch(IOException e)
+    {
+      this.serverUI.display("Unable to handle the message");
+    }
+  }
+
+  private void handleCommandFromServerUI(String serverCommand) throws IOException {}
+
   //Class methods ***************************************************
   
   /**
@@ -99,29 +150,22 @@ public class EchoServer extends AbstractServer
    * @param args The port number to listen on.  Defaults to 5555
    *          if no argument is entered.
    */
-  public static void main(String[] args) 
-  {
-    int port = 0; //Port to listen on
-
-    try
-    {
-      port = Integer.parseInt(args[0]); //Get port from command line
-    }
-    catch(Throwable t)
-    {
-      port = DEFAULT_PORT; //Set port to 5555
-    }
-	
-    EchoServer sv = new EchoServer(port);
-    
-    try 
-    {
-      sv.listen(); //Start listening for connections
-    } 
-    catch (Exception ex) 
-    {
-      System.out.println("ERROR - Could not listen for clients!");
-    }
-  }
+//  public static void main(String[] args)
+//  {
+//    int port = 0; //Port to listen on
+//
+//    try
+//    {
+//      port = Integer.parseInt(args[0]); //Get port from command line
+//    }
+//    catch(Throwable t)
+//    {
+//      port = DEFAULT_PORT; //Set port to 5555
+//    }
+//
+//    EchoServer sv = new EchoServer(port);
+//
+//
+//  }
 }
 //End of EchoServer class
