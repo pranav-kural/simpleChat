@@ -80,7 +80,18 @@ public class ChatClient extends AbstractClient
    */
   public void handleMessageFromServer(Object msg) 
   {
-    clientUI.display(msg.toString());
+    String msgFromServer = msg.toString();
+    // if server has sent a command
+    if (msgFromServer.startsWith("#")) {
+      try {
+        clientUI.display("Server sent command to disconnect");
+        handleClientCommand(msgFromServer);
+      } catch (IOException e) {
+        clientUI.display("Unable to process server's request to disconnect");
+      }
+    } else {
+      clientUI.display(msgFromServer);
+    }
   }
 
   /**
@@ -100,7 +111,7 @@ public class ChatClient extends AbstractClient
     {
       // if message is a command
       if (message.startsWith("#")) {
-        handleCommandFromClientUI(message);
+        handleClientCommand(message);
       } else {
         if (isConnected()) {
           sendToServer(message);
@@ -120,22 +131,16 @@ public class ChatClient extends AbstractClient
     }
   }
 
-  private void handleCommandFromClientUI(String clientCommand) throws IOException {
-    // if user entered a command (with or without arguments)
-    // process user input, split on space
-    String[] userInput = clientCommand.split(" ");
-    // extract the command (without '#')
-    String command = userInput[0].substring(1);
-    String commandArgs = null;
-    // if we have received command with arguments
-    if (userInput.length > 1) {
-      // extract arguments
-      commandArgs= userInput[1];
-    }
+  private void handleClientCommand(String clientCommand) throws IOException {
+    // get command and command args separately
+    String[] commandAndArgs = extractCommandAndArgs(clientCommand);
+    String command = commandAndArgs[0];
+    String commandArgs = commandAndArgs[1]; // will be null if no args supplied
 
     // check if the command is valid (not empty, or unhandled)
     if (!isValidCommand(command)) {
       this.clientUI.display("not a valid command: #" + command);
+      return;
     }
 
     if (command.equals(COMMANDS.quit.name())) {
@@ -145,7 +150,7 @@ public class ChatClient extends AbstractClient
 
     else if (command.equals(COMMANDS.logoff.name())) {
       // close connection (but not quit)
-      if (!isConnected()) {
+      if (isConnected()) {
         closeConnection();
       } else {
         this.clientUI.display("Invalid command! No active connection.");
@@ -160,10 +165,10 @@ public class ChatClient extends AbstractClient
         this.clientUI.display("Can not change hostname while connection is active. Please disconnect first (#logoff), then try again.");
       }
       // validate command arguments
-      if (!isValidCommandArgs(commandArgs)) {
-        this.clientUI.display("Invalid command argument, no host provided.");
-      } else {
+      if (isValidCommandArgs(commandArgs)) {
         setHost(commandArgs);
+      } else {
+        this.clientUI.display("Invalid command argument, no host provided.");
       }
     }
 
@@ -201,12 +206,12 @@ public class ChatClient extends AbstractClient
 
     else if (command.equals(COMMANDS.gethost.name())) {
       // display current host name
-      this.clientUI.display("Connected to host: " + getHost());
+      this.clientUI.display("Current client's host set to: " + getHost());
     }
 
     else if (command.equals(COMMANDS.getport.name())) {
-      // display current host name
-      this.clientUI.display("Connected on port: " + getPort());
+      // display current port
+      this.clientUI.display("Current client's port set to: " + getPort());
     }
 
     // not one of the yet implemented accepted commands
@@ -258,11 +263,20 @@ public class ChatClient extends AbstractClient
    * @return true if valid command, else false
    */
   private static boolean isValidCommand(String command) {
-    return !command.isEmpty() && ACCEPTED_COMMANDS.get(command);
+    return command != null && !command.isEmpty() && ACCEPTED_COMMANDS.containsKey(command);
   }
 
   private static boolean isValidCommandArgs(String commandArgs) {
     return commandArgs != null && !commandArgs.isEmpty();
+  }
+
+  private String[] extractCommandAndArgs(String userInput) throws ArrayIndexOutOfBoundsException {
+      // process user input, split on space
+      String[] result = userInput.split(" ");
+      // extract the command (without '#')
+      String command = result[0].substring(1);
+      String commandArgs = (result.length > 2) ? result[1] : null;
+      return new String[]{ command, commandArgs };
   }
 }
 //End of ChatClient class

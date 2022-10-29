@@ -37,7 +37,7 @@ public class ServerConsole implements ChatIF {
     public ServerConsole(int port)
     {
         // instantiate echo server
-        server = new EchoServer(port);
+        server = new EchoServer(port, this);
 
         // attempt to start listening for connections
         try
@@ -75,7 +75,7 @@ public class ServerConsole implements ChatIF {
         }
         catch (Exception ex)
         {
-            System.out.println("Unexpected error while reading from console!");
+            System.out.println("Unexpected error while reading from console! " + ex.getMessage());
         }
     }
 
