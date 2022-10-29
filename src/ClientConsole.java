@@ -51,11 +51,16 @@ public class ClientConsole implements ChatIF
    * @param host The host to connect to.
    * @param port The port to connect on.
    */
-  public ClientConsole(String host, int port) 
+  public ClientConsole(String loginId, String host, int port)
   {
+    // login id must be provided
+    if (loginId == null) {
+      throw new IllegalArgumentException("Invalid login id");
+    }
+
     try 
     {
-      client= new ChatClient(host, port, this);
+      client= new ChatClient(loginId, host, port, this);
       
       
     } 
@@ -122,11 +127,18 @@ public class ClientConsole implements ChatIF
     // initialize using default values
     String host = DEFAULT_HOST;
     int port = DEFAULT_PORT;
+    // loginId must be provided
+    if (args.length < 1) {
+      System.out.println("Unable to create ClientConsole UI because no loginID was provided");
+      return;
+    }
+    String loginId = null;
 
     // over-write host and/or port if we have valid arguments
     try {
-      host = args[0];
-      port = Integer.parseInt(args[1]);
+      loginId = args[0];
+      host = args[1];
+      port = Integer.parseInt(args[2]);
       System.out.println("Connecting on host: " + host + ", port: " + port);
     }
     catch(ArrayIndexOutOfBoundsException e) {
@@ -135,8 +147,10 @@ public class ClientConsole implements ChatIF
     catch (NumberFormatException e) {
       System.out.println("No port number provided, connecting on host: " + host + ", port: " + port);
     }
-    ClientConsole chat= new ClientConsole(host, port);
+
+    ClientConsole chat = new ClientConsole(loginId, host, port);
     chat.accept();  //Wait for console data
+
   }
 }
 //End of ConsoleChat class

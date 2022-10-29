@@ -28,6 +28,11 @@ public class ChatClient extends AbstractClient
    */
   ChatIF clientUI;
 
+  /**
+   * ClientConsole's id
+   */
+  String loginId;
+
   // define a structure for all commands
   // to avoid using hard-coded strings in multiple places
   private enum COMMANDS {
@@ -62,12 +67,15 @@ public class ChatClient extends AbstractClient
    * @param clientUI The interface type variable.
    */
   
-  public ChatClient(String host, int port, ChatIF clientUI) 
+  public ChatClient(String loginId, String host, int port, ChatIF clientUI)
     throws IOException 
   {
     super(host, port); //Call the superclass constructor
     this.clientUI = clientUI;
+    this.loginId = loginId;
     openConnection();
+    // send login id to the server
+    sendToServer("#login " + loginId);
   }
 
   
