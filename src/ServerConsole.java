@@ -3,6 +3,11 @@ import server.EchoServer;
 
 import java.util.Scanner;
 
+/**
+ * ServerConsole class helps to create a user interface for a EchoServer
+ * @author Pranav Kural
+ * Student number: 300241227
+ */
 public class ServerConsole implements ChatIF {
     //Class variables *************************************************
 
@@ -17,7 +22,6 @@ public class ServerConsole implements ChatIF {
      * The instance of the echo server that created this ServerConsole
      */
     EchoServer server;
-
 
 
     /**

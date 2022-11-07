@@ -6,20 +6,14 @@ package server;
 
 import common.ChatIF;
 import  ocsf.server.*;
-
+import utils.SCUtilities;
 import java.io.IOException;
-import java.sql.SQLOutput;
 import java.util.HashMap;
 
 /**
- * This class overrides some of the methods in the abstract 
- * superclass in order to give more functionality to the server.
- *
- * @author Dr Timothy C. Lethbridge
- * @author Dr Robert Lagani&egrave;re
- * @author Fran&ccedil;ois B&eacute;langer
- * @author Paul Holden
- * @version July 2000
+ * Concrete class implementing AbstractServer of the OCSF framework
+ * @author Pranav Kural
+ * Student number: 300241227
  */
 public class EchoServer extends AbstractServer
 {
@@ -69,7 +63,7 @@ public class EchoServer extends AbstractServer
   }
 
   // list of accepted commands (common to all clients)
-  // storing in a HashMap for quickly checking if a given string value if a valid command (in O(1))
+  // storing in a HashMap for quickly checking if a given string value is a valid command (in O(1))
   private final static HashMap<String, Boolean> ACCEPTED_COMMANDS = new HashMap<>() {{
     put(COMMANDS.quit.name(), true);
     put(COMMANDS.stop.name(), true);
@@ -122,22 +116,48 @@ public class EchoServer extends AbstractServer
     }
 
     String msgStr = (String) msg;
-    // if msg received from client is "#login" command
-    if (msgStr.startsWith(CLIENT_SET_LOGIN_ID_COMMAND)) {
-      try {
-        // set client's loginId
-        setClientLoginId(msgStr, client);
-        sendMessageToClient("Client's login id successfully updated", client);
-      } catch (Exception e) {
-        sendMessageToClient("Failed to set login id. Error: " + e.getMessage(), client);
+
+    if (msgStr.startsWith(COMMAND_PREFIX)) {
+      // if msg received from client is "#login" command
+      if (msgStr.startsWith(CLIENT_SET_LOGIN_ID_COMMAND)) {
+        try {
+          // display a message
+          serverUI.display("Message received: #login <loginID> from null.");
+          // set client's loginId
+          setClientLoginId(msgStr, client);
+          // print server message indicating success in logging in client
+          serverUI.display(client.getInfo(CLIENT_LOGIN_ID_KEY) + " has logged on.");
+          // let client know connecting was successful
+          sendMessageToClient(client.getInfo(CLIENT_LOGIN_ID_KEY) + " has logged on.", client);
+        } catch (Exception e) {
+          sendMessageToClient("Failed to set login id. Error: " + e.getMessage(), client);
+        }
       }
-    } else {
+
+      // if msg received from client is "#logoff" command
+      else if (msgStr.startsWith(CLIENT_LOGOFF_COMMAND)) {
+        try {
+          // disconnect the client
+          client.close();
+        } catch (Exception e) {
+          sendMessageToClient("Failed to logoff client. Error: " + e.getMessage(), client);
+        }
+      }
+
+      else {
+        sendMessageToClient("Invalid command: " + msgStr, client);
+      }
+
+    }
+
+    // else if message received from the client is not a command
+    else {
       // make sure client has set the login id before sending any messages
       // this also ensures, client sent login command as first thing after establishing connection
       if (client.getInfo(CLIENT_LOGIN_ID_KEY) != null) {
         // send message to the server
-        System.out.println("Message received: " + msg + " from " + client);
-        this.sendToAllClients(String.valueOf(client.getInfo(CLIENT_LOGIN_ID_KEY)) + ": " + msg);
+        System.out.println("Message received: " + msg + " from " + client.getInfo(CLIENT_LOGIN_ID_KEY));
+        this.sendToAllClients(client.getInfo(CLIENT_LOGIN_ID_KEY) + ": " + msg);
       } else {
         sendMessageToClient("Invalid request received. " + CLIENT_LOGIN_ID_KEY + " must be the first command after connection has established. Terminating connection.", client);
         try {
@@ -175,7 +195,7 @@ public class EchoServer extends AbstractServer
    */
   @Override
   protected void clientConnected(ConnectionToClient client) {
-    System.out.println("Connection established with a new client. Number of connected clients: " + getNumberOfClients());
+    System.out.println("A new client has connected to the server.");
   }
 
   /**
@@ -184,39 +204,58 @@ public class EchoServer extends AbstractServer
    */
   @Override
   synchronized protected void clientDisconnected(ConnectionToClient client) {
-    System.out.println("Connection disconnected with a client. Number of connected clients: " + getNumberOfClients());
+    System.out.println("Connection disconnected with a client");
   }
 
-  public void handleMessageFromServerUI(String message) {
+  /**
+   *
+   * @param client the client that raised the exception.
+   * @param exception
+   */
+  @Override
+  protected synchronized void clientException(ConnectionToClient client, Throwable exception) {
+    System.out.println("Connection disconnected with client: " + client);
+  }
+
+  /**
+   * Method to handle input from user from the Server UI console
+   * @param userInput the user's input on server UI
+   */
+  public void handleMessageFromServerUI(String userInput) {
     // guard-clause
-    if (message == null) {
-      this.serverUI.display("Invalid message received from Server UI");
+    if (userInput == null) {
+      this.serverUI.display("Invalid userInput received from Server UI");
       return;
     }
 
     try
     {
-      // if message is a command
-      if (message.startsWith(COMMAND_PREFIX)) {
-        handleCommandFromServerUI(message);
+      // if userInput is a command
+      if (userInput.startsWith(COMMAND_PREFIX)) {
+        handleCommandFromServerUI(userInput);
       } else {
         if (getNumberOfClients() == 0) {
           this.serverUI.display("No clients connected");
         } else {
-          // print the message to all connected clients
-          this.sendToAllClients("SERVER MSG> " + message);
+          // print the userInput to all connected clients
+          this.sendToAllClients("SERVER MSG> " + userInput);
         }
 
-        // print message on serverUI as well
-        this.serverUI.display(message);
+        // print userInput on serverUI as well
+        this.serverUI.display(userInput);
       }
     }
     catch(IOException e)
     {
-      this.serverUI.display("Unable to handle the message");
+      this.serverUI.display("Unable to handle the userInput");
     }
   }
 
+  /**
+   * Method to handle commands input by user on the Server UI console
+   * @param serverCommand command for server to handle
+   * @throws IOException throws IOException for invalid command or other errors
+   */
   private void handleCommandFromServerUI(String serverCommand) throws IOException {
 
     // guard-clause
@@ -225,12 +264,17 @@ public class EchoServer extends AbstractServer
     }
 
     // get command and command args separately
-    String[] commandAndArgs = extractCommandAndArgs(serverCommand);
+    String[] commandAndArgs = SCUtilities.extractCommandAndArgs(serverCommand, COMMAND_ARGUMENT_SEPARATOR);
+    // guard-clause, check if processed input is not null
+    if (!SCUtilities.isValidArray(commandAndArgs)) {
+      throw new NullPointerException("Invalid value provided for command & arguments (msgStr)");
+    }
+    // extract command and args separately
     String command = commandAndArgs[0].substring(1); // get command name without the COMMAND_PREFIX
     String commandArgs = commandAndArgs[1]; // will be null if no args supplied
 
-    // check if the command is valid (not empty, or unhandled)
-    if (!isValidCommand(command)) {
+    // check if the command is valid (not empty, or unaccepted)
+    if (!SCUtilities.isValidCommand(command, ACCEPTED_COMMANDS)) {
       this.serverUI.display("not a valid command: " + COMMAND_PREFIX + command);
       return;
     }
@@ -275,7 +319,7 @@ public class EchoServer extends AbstractServer
         this.serverUI.display("Can not change port while server is listening for connections. Please close the server first (" + COMMAND_PREFIX + "close), then try again.");
       }
       // validate command arguments
-      if (!isValidCommandArgs(commandArgs)) {
+      if (!SCUtilities.isValidString(commandArgs)) {
         this.serverUI.display("Invalid command argument, no port number provided.");
       } else {
         int port;
@@ -318,7 +362,9 @@ public class EchoServer extends AbstractServer
     ConnectionToClient client;
     for (Thread clientThread : clientThreads) {
       client = (ConnectionToClient) clientThread;
-      client.sendToClient(CLIENT_LOGOFF_COMMAND);
+      client.close();
+      // print a message - Testcase 2008
+      serverUI.display(client.getInfo(CLIENT_LOGIN_ID_KEY) + " has disconnected.");
     }
   }
 
@@ -328,7 +374,13 @@ public class EchoServer extends AbstractServer
       throw new NullPointerException("Method setClientLoginId called with invalid arguments");
     }
     // process input to get command and args separately
-    String[] loginInput = extractCommandAndArgs(msgStr);
+    String[] loginInput = SCUtilities.extractCommandAndArgs(msgStr, COMMAND_ARGUMENT_SEPARATOR);
+
+    // guard-clause, check if processed input is not null
+    if (!SCUtilities.isValidArray(loginInput)) {
+      throw new NullPointerException("Invalid value provided for command & arguments (msgStr)");
+    }
+
     // validate command
     if (!loginInput[0].equals(CLIENT_SET_LOGIN_ID_COMMAND)) {
       throw new IllegalArgumentException("Method setClientLoginId called with invalid command value: " + loginInput[0]);
@@ -345,31 +397,11 @@ public class EchoServer extends AbstractServer
   //Class methods ***************************************************
 
   /**
-   * Checks is a provided command value is one of the accepted commands
-   * @param command string value of the command to be validated
-   * @return true if valid command, else false
+   * A helper method to send a message to a specific client
+   * Used for sending error or other informative messages to specific client
+   * @param message message to be sent
+   * @param client client to which message needs to be sent
    */
-  private static boolean isValidCommand(String command) {
-    return command != null && !command.isEmpty() && ACCEPTED_COMMANDS.containsKey(command);
-  }
-
-  private static boolean isValidCommandArgs(String commandArgs) {
-    return commandArgs != null && !commandArgs.isEmpty();
-  }
-
-  private String[] extractCommandAndArgs(String userInput) {
-    // guard-clause
-    if (userInput == null || userInput.isEmpty()) {
-      return null;
-    }
-    // process user input, split on space
-    String[] result = userInput.split(COMMAND_ARGUMENT_SEPARATOR);
-    // extract the command (without COMMAND_PREFIX)
-    String command = result[0];
-    String commandArgs = (result.length >= 2) ? result[1] : null;
-    return new String[]{ command, commandArgs };
-  }
-
   private void sendMessageToClient(String message, ConnectionToClient client) {
     try {
       client.sendToClient(message);

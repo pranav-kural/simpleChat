@@ -9,14 +9,9 @@ import client.*;
 import common.*;
 
 /**
- * This class constructs the UI for a chat client.  It implements the
- * chat interface in order to activate the display() method.
- * Warning: Some of the code here is cloned in ServerConsole 
- *
- * @author Fran&ccedil;ois B&eacute;langer
- * @author Dr Timothy C. Lethbridge  
- * @author Dr Robert Lagani&egrave;re
- * @version September 2020
+ * ClientConsole class helps to create a user interface for a ChatClient
+ * @author Pranav Kural
+ * Student number: 300241227
  */
 public class ClientConsole implements ChatIF 
 {
@@ -59,12 +54,9 @@ public class ClientConsole implements ChatIF
     try 
     {
       client= new ChatClient(loginId, host, port, this);
-    } 
-    catch(IOException exception) 
-    {
-      System.out.println("Error: Can't setup connection!"
-                + " Terminating client.");
-      System.exit(1);
+    }
+    catch (IllegalArgumentException e) {
+      display(e.getMessage());
     }
     
     // Create scanner object to read from console
@@ -93,8 +85,7 @@ public class ClientConsole implements ChatIF
     } 
     catch (Exception ex) 
     {
-      System.out.println
-        ("Unexpected error while reading from console! " + ex.getMessage());
+      display("Unexpected error while reading from console! " + ex.getMessage());
     }
   }
 
@@ -145,6 +136,17 @@ public class ClientConsole implements ChatIF
     }
 
     ClientConsole chat = new ClientConsole(loginId, host, port);
+    // below implemented for Testcase 2003 (generally, ClientConsole must have a login id)
+    try{
+      chat.client.connectToServer();
+    }
+    catch(IOException exception)
+    {
+      chat.display("Error: Can't setup connection! Terminating client.");
+      // terminate the client
+      chat.client.quit();
+      System.exit(1);
+    }
     chat.accept();  //Wait for console data
 
   }
