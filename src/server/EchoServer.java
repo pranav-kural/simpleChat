@@ -195,7 +195,7 @@ public class EchoServer extends AbstractServer
    */
   @Override
   protected void clientConnected(ConnectionToClient client) {
-    System.out.println("A new client has connected to the server.");
+    serverUI.display("A new client has connected to the server.");
   }
 
   /**
@@ -204,7 +204,7 @@ public class EchoServer extends AbstractServer
    */
   @Override
   synchronized protected void clientDisconnected(ConnectionToClient client) {
-    System.out.println("Connection disconnected with a client");
+    serverUI.display("Connection disconnected with a client");
   }
 
   /**
@@ -214,7 +214,7 @@ public class EchoServer extends AbstractServer
    */
   @Override
   protected synchronized void clientException(ConnectionToClient client, Throwable exception) {
-    System.out.println("Connection disconnected with client: " + client);
+    serverUI.display("A client has terminated connection");
   }
 
   /**
